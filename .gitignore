@@ -1,0 +1,22 @@
+# Build output
+target/
+
+# Local configuration and secrets - never commit
+.env
+
+# Maven bootstrap download
+.mvn/apache-maven-*/
+.mvn/maven.zip
+
+# IDE / OS files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs and test tool output
+*.log
+node_modules/
+tests/postman/results/
+newman/
