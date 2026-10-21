@@ -1,0 +1,535 @@
+{
+  "info": {
+    "name": "Online Polling System - Functional Tests",
+    "description": "Automated API tests (PVS-12). Run with Newman: see docs/FUNCTIONAL_TESTING.md. Requests must run in order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Health check",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"voterId\", \"newman-\" + Date.now());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Application and database are UP\", function () { pm.expect(body.status).to.eql(\"UP\"); pm.expect(body.database).to.eql(\"UP\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 Create a valid poll",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Poll is active with 3 options\", function () { pm.expect(body.status).to.eql(\"ACTIVE\"); pm.expect(body.active).to.eql(true); pm.expect(body.options).to.have.lengthOf(3); });",
+              "pm.test(\"Options have stable ids\", function () { body.options.forEach(function (o) { pm.expect(o.id).to.be.a(\"string\").and.not.empty; }); });",
+              "pm.collectionVariables.set(\"pollId\", body.id);",
+              "pm.collectionVariables.set(\"optionId\", body.options[0].id);",
+              "pm.collectionVariables.set(\"optionId2\", body.options[1].id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"Postman test poll {{$timestamp}}\",\n  \"options\": [\"Alpha\", \"Beta\", \"Gamma\"]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "03 Retrieve all polls",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Response is an array containing the created poll\", function () { pm.expect(body).to.be.an(\"array\"); pm.expect(body.map(function (p) { return p.id; })).to.include(pm.collectionVariables.get(\"pollId\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 Retrieve a specific poll",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Correct poll returned\", function () { pm.expect(body.id).to.eql(pm.collectionVariables.get(\"pollId\")); pm.expect(body.question).to.include(\"Postman test poll\"); pm.expect(body.status).to.eql(\"ACTIVE\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/{{pollId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "{{pollId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "05 Reject invalid poll creation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Validation error with details\", function () { pm.expect(body.error).to.eql(\"VALIDATION_ERROR\"); pm.expect(body.details).to.have.lengthOf.at.least(2); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"   \",\n  \"options\": [\"Only one\"]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "06 Cast a valid vote",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Vote confirmed without exposing the voter id\", function () { pm.expect(body.message).to.eql(\"Vote recorded.\"); pm.expect(pm.response.text()).to.not.include(pm.collectionVariables.get(\"voterId\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/{{pollId}}/votes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "{{pollId}}",
+            "votes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"voterId\": \"{{voterId}}\",\n  \"optionId\": \"{{optionId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "07 Retrieve results",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"One vote counted for the chosen option\", function () { pm.expect(body.totalVotes).to.eql(1); var o = body.options.find(function (x) { return x.optionId === pm.collectionVariables.get(\"optionId\"); }); pm.expect(o.votes).to.eql(1); pm.expect(o.percentage).to.eql(100); });",
+              "pm.test(\"Other options have zero votes\", function () { var others = body.options.filter(function (x) { return x.optionId !== pm.collectionVariables.get(\"optionId\"); }); others.forEach(function (x) { pm.expect(x.votes).to.eql(0); pm.expect(x.percentage).to.eql(0); }); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/{{pollId}}/results",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "{{pollId}}",
+            "results"
+          ]
+        }
+      }
+    },
+    {
+      "name": "08 Reject a duplicate vote",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Duplicate vote error\", function () { pm.expect(body.error).to.eql(\"DUPLICATE_VOTE\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/{{pollId}}/votes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "{{pollId}}",
+            "votes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"voterId\": \"{{voterId}}\",\n  \"optionId\": \"{{optionId2}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "09 Duplicate vote did not change the count",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Total is still 1 and second option still 0\", function () { pm.expect(body.totalVotes).to.eql(1); var o2 = body.options.find(function (x) { return x.optionId === pm.collectionVariables.get(\"optionId2\"); }); pm.expect(o2.votes).to.eql(0); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/{{pollId}}/results",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "{{pollId}}",
+            "results"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 Close the poll",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Poll is closed\", function () { pm.expect(body.status).to.eql(\"CLOSED\"); pm.expect(body.active).to.eql(false); pm.expect(body.closedAt).to.be.a(\"string\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/{{pollId}}/close",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "{{pollId}}",
+            "close"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "11 Reject voting on a closed poll",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Poll closed error\", function () { pm.expect(body.error).to.eql(\"POLL_CLOSED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/{{pollId}}/votes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "{{pollId}}",
+            "votes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"voterId\": \"{{voterId}}-late\",\n  \"optionId\": \"{{optionId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "12 Retrieve results for a closed poll",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Results are preserved after closing\", function () { pm.expect(body.status).to.eql(\"CLOSED\"); pm.expect(body.totalVotes).to.eql(1); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/{{pollId}}/results",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "{{pollId}}",
+            "results"
+          ]
+        }
+      }
+    },
+    {
+      "name": "13 Unknown poll returns 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Not found error\", function () { pm.expect(body.error).to.eql(\"NOT_FOUND\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/polls/this-poll-does-not-exist",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "polls",
+            "this-poll-does-not-exist"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "pollId",
+      "value": ""
+    },
+    {
+      "key": "optionId",
+      "value": ""
+    },
+    {
+      "key": "optionId2",
+      "value": ""
+    },
+    {
+      "key": "voterId",
+      "value": "postman-voter"
+    }
+  ]
+}
