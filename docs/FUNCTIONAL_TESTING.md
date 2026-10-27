@@ -34,3 +34,6 @@ Or import the JSON file into the Postman app and click Run. Expected: `requests 
 On 2026-10-19 in the generation sandbox, Newman ran this collection against the **real Java HTTP stack backed by in-memory fake repositories** (`InMemoryServerLauncher`, a test-only harness, because the sandbox has no MongoDB): **13 requests, 28 assertions, 0 failures**.
 It has **not** been run against the real MongoDB-backed application. That run is yours to do with the two commands above (GitHub Actions also runs it in the `functional-tests` job once pushed, which has not happened yet)
 
+GET /api/health — Passed, HTTP 200
+POST /api/polls — Passed, HTTP 201
+GET /api/polls/{id} — Passed, HTTP 200
